@@ -39,7 +39,14 @@ module ram_4x8 (
 );
     reg [7:0] memory [3:0];
 
+    always @(posedge clk) begin
+        if (we)
+            memory[addr] <= data_in;    // Write operation
+        else
+            data_out <= memory[addr];   // Read operation
+    end
 endmodule
+
 ```
 ### Testbench for RAM
 ```
@@ -56,10 +63,13 @@ module tb_ram_4x8;
     initial begin
         clk = 0; we = 0;
         addr = 2'b00; data_in = 8'h00;
+
         #10 we = 1; addr = 2'b00; data_in = 8'hA5; // Write A5 at addr 00
         #10 addr = 2'b01; data_in = 8'h3C;         // Write 3C at addr 01
+
         #10 we = 0; addr = 2'b00;                  // Read addr 00
         #10 addr = 2'b01;                          // Read addr 01
+
         #10 $finish;
     end
 endmodule
@@ -69,7 +79,8 @@ endmodule
 *
 *
 *
-Paste the output here
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/142f0396-b00e-46b3-aa0e-eb6a21374b47" />
+
 *
 *
 ### 2. ROM Module
@@ -81,9 +92,19 @@ module rom_4x8 (
 );
     reg [7:0] memory [3:0];
 
+    // Preload ROM contents
+    initial begin
+        memory[0] = 8'hA5;
+        memory[1] = 8'h3C;
+        memory[2] = 8'h7E;
+        memory[3] = 8'h55;
+    end
 
-
+    always @(*) begin
+        data_out = memory[addr];   // Read-only operation
+    end
 endmodule
+
 ```
 ### Testbench for ROM
 ```
@@ -93,14 +114,25 @@ module tb_rom_4x8;
 
     rom_4x8 uut(addr, data_out);
 
-  
+    initial begin
+        // Test all addresses
+        addr = 2'b00; #10;
+        addr = 2'b01; #10;
+        addr = 2'b10; #10;
+        addr = 2'b11; #10;
+
+        $finish;
+    end
+endmodule
+
 ```
 ### Simulation Output for ROM
 *
 *
 *
 *
-Paste the output here
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/339ba985-d926-43ce-a649-737ebf071676" />
+
 *
 *
 
@@ -125,6 +157,7 @@ module fifo_4x8 (
             count <= 0;
             full <= 0;
             empty <= 1;
+            data_out <= 0;
         end
         else begin
             // Write operation
@@ -132,9 +165,22 @@ module fifo_4x8 (
                 fifo_mem[wr_ptr] <= data_in;
                 wr_ptr <= wr_ptr + 1;
                 count <= count + 1;
-         
+            end
+
+            // Read operation
+            if (rd_en && !empty) begin
+                data_out <= fifo_mem[rd_ptr];
+                rd_ptr <= rd_ptr + 1;
+                count <= count - 1;
+            end
+
+            // Update full & empty flags
+            full <= (count == 4);
+            empty <= (count == 0);
+        end
     end
 endmodule
+
 ```
 ### Testbench for FIFO
 ```
@@ -152,18 +198,30 @@ module tb_fifo_4x8;
         clk = 0; reset = 1; wr_en = 0; rd_en = 0; data_in = 8'h00;
         #10 reset = 0;
 
-        // Write data
         wr_en = 1; data_in = 8'h11; #10;
         data_in = 8'h22; #10;
-        
+        data_in = 8'h33; #10;
+        data_in = 8'h44; #10;
+
+        wr_en = 0;
+
+        rd_en = 1; #10;
+        #10;
+        #10;
+        #10;
+        rd_en = 0;
+        #20 $finish;
+    end
 endmodule
+
 ```
 ### Simulation Output for FIFO
 *
 *
 *
 *
-Paste the output here
+<img width="1918" height="1078" alt="image" src="https://github.com/user-attachments/assets/35499498-fa9d-4cc8-ab95-bc4fb285dd2b" />
+
 *
 *
 ### Result
